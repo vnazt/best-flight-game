@@ -97,7 +97,7 @@ const HUD = (() => {
     const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
     ctx.save();
     ctx.beginPath(); ctx.rect(430, 12, 420, 44); ctx.clip();
-    for (let d = -60; d <= 60; d += 10) {
+    for (let d = -50; d <= 50; d += 10) {
       const h = Math.round((hdgDeg + d) / 10) * 10;
       const x = 640 - d * 3.4;
       const label = h % 45 === 0 ? dirs[((Math.round(h / 45) % 8) + 8) % 8] : String(((h % 360) + 360) % 360);
@@ -149,7 +149,7 @@ const HUD = (() => {
     panel(ctx, 1028, 620, 240, 168);
     text(ctx, 'KAPUAS — RIVER MAP', 1148, 644, 14, AMBER, '700', 'center');
     const x0 = 1048, x1 = 1248, y0 = 654, y1 = 736;
-    ctx.strokeStyle = '#c98a3d'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+    ctx.strokeStyle = '#6fa8bd'; ctx.lineWidth = 5; ctx.lineCap = 'round';
     ctx.beginPath();
     for (let s = 0; s <= River.PATH_LEN; s += 800) {
       const x = x0 + (x1 - x0) * (River.riverXAt(s) + 380) / 760;

@@ -73,15 +73,13 @@ const Shots = (() => {
       m.legs[1].status = 'DONE'; m.legs[1].score = 12300; m.legs[1].rings = '9/10'; m.legs[1].cargo = '2/2';
       m.legs[2].status = 'DONE'; m.legs[2].score = 10450; m.legs[2].rings = '6/6'; m.legs[2].cargo = '1/1';
       m.refitNames = ['TOP UP FUEL', 'PATCH AIRFRAME'];
-      // A believable recorder trace: climb, cruise, descent per leg.
+      // A believable recorder trace: smooth climb, cruise and descent.
       const trace = [];
       for (let t = 0; t <= 420; t += 2) {
-        const phase = (t / 420) * 3;
-        const base = phase < 1 ? 120 + t * 1.1 : phase < 2 ? 420 - (t - 140) * 0.6 : 200 + (t - 280) * 0.4;
         trace.push({
           t,
-          altFt: Math.round(Math.max(60, base + 60 * Math.sin(t / 24))),
-          spdKt: Math.round(95 + 40 * Math.sin(t / 31) + (phase < 2 ? 20 : -25)),
+          altFt: Math.round(260 + 150 * Math.sin(t / 47) + 60 * Math.sin(t / 19)),
+          spdKt: Math.round(105 + 35 * Math.sin(t / 29 + 1)),
         });
       }
       m.debrief = {

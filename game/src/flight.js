@@ -15,7 +15,7 @@ const Flight = (() => {
       ringsPassed: 0, ringsTotal: 0,
       cargoDone: 0, cargoTotal: 0,
       state: 'TITLE', // TITLE | FLY | TURNAROUND | DEBRIEF | CRASHED | LANDED
-      leg: 0, onWater: false, landed: false,
+      leg: 0, onWater: false, landed: false, airborne: false,
       timeSec: 0, landfallSec: 8 * 60, // monsoon landfall countdown
       events: [], // {kind, text} consumed by radio + HUD
       trace: [], // flight-recorder: {t, altFt, spdKt} sampled 2x/sec
@@ -36,18 +36,18 @@ const Flight = (() => {
     const targetSpd = 42 + f.thr * 108;
     f.spdKt += (targetSpd - f.spdKt) * Math.min(1, dt * 0.55);
 
-    // Pitch: climb/descent rate; roll: bank and turn.
+    // Pitch: climb/descent rate from the pitch angle and true airspeed.
     f.pitchDeg += (input.pitch * 9 - f.pitchDeg) * Math.min(1, dt * 3);
     f.rollDeg += (input.roll * 28 - f.rollDeg) * Math.min(1, dt * 3.2);
-    f.altFt = Math.max(0, f.altFt + f.pitchDeg * f.spdKt * KT_TO_MS * dt * 3.2);
+    f.altFt = Math.max(0, f.altFt + Math.sin(f.pitchDeg * Math.PI / 180) * f.spdKt * KT_TO_MS * dt / FT_TO_M);
     f.altFt = Math.min(1500, f.altFt);
     f.lat += Math.sin(f.rollDeg * Math.PI / 180) * f.spdKt * KT_TO_MS * dt * 2.4;
     f.lat = Math.max(-160, Math.min(160, f.lat));
     f.s += f.spdKt * KT_TO_MS * dt;
 
-    // Fuel: throttle burns it; BINGO at 25 kg.
+    // Fuel: throttle burns it slowly — a full tank lasts ~11 minutes at cruise.
     const before = f.fuelKg;
-    f.fuelKg = Math.max(0, f.fuelKg - (2.2 + f.thr * 5.5) * dt);
+    f.fuelKg = Math.max(0, f.fuelKg - (0.05 + f.thr * 0.12) * dt);
     if (before > 25 && f.fuelKg <= 25) emit(f, 'bingo', 'BINGO FUEL — 25 kg left. Every litre is a decision now.');
     if (f.fuelKg <= 0) { crashFlight(f, 'OUT OF FUEL'); return; }
 
@@ -99,14 +99,18 @@ const Flight = (() => {
     // Monsoon landfall: the wall catches the plane.
     if (f.landfallSec <= 0) { crashFlight(f, 'THE MONSOON CAUGHT YOU'); return; }
 
+    // Once airborne, the plane stays airborne until it lands. A fresh
+    // spawn sits at alt 0, spd 38 on a strip — it must not land instantly.
+    if (f.altFt > 80 || f.spdKt > 80) f.airborne = true;
+
     // Water landing at a strip: slow, low, on the river.
-    for (const strip of world.strips) {
+    for (const strip of River.STRIPS) {
       if (strip.s > 0 && Math.abs(f.s - strip.s) < 70) {
-        if (f.spdKt < 72 && f.altFt < 55 && Math.abs(f.lat) < River.riverHalfAt(f.s) + 4) {
+        if (f.airborne && f.spdKt < 72 && f.altFt < 55 && Math.abs(f.lat) < River.riverHalfAt(f.s) + 4) {
           landFlight(f, strip);
           return;
         }
-        if (f.altFt < 12 && Math.abs(f.lat) > River.riverHalfAt(f.s) + 4) {
+        if (f.airborne && f.altFt < 12 && Math.abs(f.lat) > River.riverHalfAt(f.s) + 4) {
           crashFlight(f, 'DITCHED IN THE TREES'); return;
         }
       }
@@ -132,6 +136,7 @@ const Flight = (() => {
     f.state = 'LANDED';
     f.landed = true;
     f.onWater = true;
+    f.airborne = false;
     f.spdKt = 0;
     f.score += 500;
     emit(f, 'land', 'DOWN SAFE — ' + strip.name + ' ' + strip.runway + ' +500');
@@ -142,6 +147,7 @@ const Flight = (() => {
     f.altFt = 0;
     f.spdKt = 38;
     f.thr = 0.55;
+    f.airborne = false;
     emit(f, 'radio', 'Sinta — Kapuas Control: Kite Four, river is yours. Wind calm, wall at eight minutes.');
   }
 

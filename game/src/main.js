@@ -102,15 +102,15 @@ const Main = (() => {
       const g0 = project(G.camX - 520, 0, z0), g1 = project(G.camX - 520, 0, z1);
       const g2 = project(G.camX + 520, 0, z1), g3 = project(G.camX + 520, 0, z0);
       // Grass band, alternating shade for speed sensation.
-      ctx.fillStyle = seg % 2 === 0 ? '#3f7a34' : '#3a7030';
+      ctx.fillStyle = seg % 2 === 0 ? '#3e7833' : '#3a7130';
       ctx.beginPath();
       ctx.moveTo(g0.x, g0.y); ctx.lineTo(g1.x, g1.y); ctx.lineTo(g2.x, g2.y); ctx.lineTo(g3.x, g3.y);
       ctx.closePath(); ctx.fill();
-      // River band.
+      // River band: dusk-blue water with a sunlit centre.
       const r0 = project(cx0 - hw0, 0, z0), r1 = project(cx1 - hw1, 0, z1);
       const r2 = project(cx1 + hw1, 0, z1), r3 = project(cx0 + hw0, 0, z0);
       const rg = ctx.createLinearGradient(r0.x, r0.y, r3.x, r3.y);
-      rg.addColorStop(0, '#8a6a3b'); rg.addColorStop(0.5, '#b08a4a'); rg.addColorStop(1, '#8a6a3b');
+      rg.addColorStop(0, '#2f647d'); rg.addColorStop(0.5, '#6fa8bd'); rg.addColorStop(1, '#2f647d');
       ctx.fillStyle = rg;
       ctx.beginPath();
       ctx.moveTo(r0.x, r0.y); ctx.lineTo(r1.x, r1.y); ctx.lineTo(r2.x, r2.y); ctx.lineTo(r3.x, r3.y);
@@ -364,10 +364,12 @@ const Main = (() => {
   }
 
   function drawPlaneSmall(f) {
+    // Nose-down at the bottom of the windscreen: you are in the cockpit,
+    // looking over the floats at the river ahead.
     ctx.save();
-    ctx.translate(640, 330);
+    ctx.translate(640, 420);
     ctx.rotate(f.rollDeg * Math.PI / 180 * 0.5);
-    ctx.scale(0.55, 0.55);
+    ctx.scale(0.38, 0.38);
     ctx.fillStyle = '#efe3c2';
     ctx.beginPath();
     ctx.moveTo(-26, -118); ctx.quadraticCurveTo(30, -118, 34, -72);
@@ -406,11 +408,12 @@ const Main = (() => {
   }
 
   function drawTurnaround(f, m) {
-    ctx.fillStyle = 'rgba(8, 14, 22, 0.82)';
+    ctx.fillStyle = 'rgba(8, 14, 22, 0.93)';
     ctx.fillRect(0, 0, W, H);
     const leg = River.LEGS[f.leg];
+    const done = m.legs.filter((l) => l.status === 'DONE').length;
     HUD.text(ctx, 'TURNAROUND — ' + leg.name, 640, 90, 34, HUD.CREAM, '800', 'center');
-    HUD.text(ctx, 'Leg ' + (f.leg + 1) + ' of 3 done · Score ' + f.score + ' · Landfall in ' + HUD.fmtTime(f.landfallSec), 640, 124, 18, HUD.AMBER, '600', 'center');
+    HUD.text(ctx, 'Leg ' + done + ' of 3 done · Score ' + f.score + ' · Landfall in ' + HUD.fmtTime(f.landfallSec), 640, 124, 18, HUD.AMBER, '600', 'center');
     // Sortie board.
     HUD.panel(ctx, 240, 160, 800, 130);
     m.legs.forEach((l, i) => {
@@ -419,6 +422,8 @@ const Main = (() => {
       HUD.text(ctx, l.status + (l.status === 'DONE' ? ' · ' + l.score + ' pts · rings ' + l.rings + ' · cargo ' + l.cargo : ''), 1010, y, 15, l.status === 'DONE' ? HUD.GREEN : 'rgba(245,234,210,0.6)', '600', 'right');
     });
     // Refit cards.
+    ctx.fillStyle = '#0a1218';
+    ctx.beginPath(); ctx.roundRect(390, 306, 500, 44, 8); ctx.fill();
     HUD.text(ctx, 'PICK ONE REFIT — it costs monsoon time', 640, 330, 18, HUD.AMBER, '800', 'center');
     Missions.REFITS.forEach((r, i) => {
       const x = 240 + i * 272, y = 350;
@@ -580,6 +585,7 @@ const Main = (() => {
     m.legs[legIndex].status = 'FLYING';
     Flight.startTakeoff(f);
     landTimer = 0;
+    G._wallWarned = false;
   }
 
   function restart() {
@@ -643,7 +649,7 @@ const Main = (() => {
     const dt = Math.min(0.05, (t - lastT) / 1000 || 0.016);
     lastT = t;
     if (G.shotMode) G.shotClock += 0.016;
-    if (!G.paused) {
+    if (!G.paused && !G.shotMode) {
       const f = G.f;
       if (f.state === 'FLY') {
         Flight.updateFlight(f, dt, readInput(), G.world);
@@ -653,7 +659,7 @@ const Main = (() => {
           G.bannerSec += dt;
           if (G.bannerSec > 3.5) G.banner = null;
         }
-        if (f.landfallSec < 120 && f.landfallSec > 119.9) Radio.say(G.radio, 'wallNear');
+        if (f.landfallSec < 120 && !G._wallWarned) { G._wallWarned = true; Radio.say(G.radio, 'wallNear'); }
       } else if (f.state === 'LANDED') {
         landTimer += dt;
         if (landTimer > 1.4) {
