@@ -39,7 +39,7 @@ const Shots = (() => {
         ringsPassed: 9, ringsTotal: 10, cargoDone: 2, cargoTotal: 3,
         landfallSec: 287, timeSec: 212,
         radio: ['Sinta — Kapuas Control', 'Clean flying, Kite. The river bends with you today.'],
-        banner: ['THE MONSOON WALL', 'LANDFALL 4:47 · WALL 2.8 NM BEHIND'],
+        banner: ['THE MONSOON WALL', 'LANDFALL 4:47 · WALL 2.6 NM BEHIND'],
       });
     } else if (name === 'cockpit') {
       // Final approach, leg 3: on glideslope to the sea lane, fuel low.

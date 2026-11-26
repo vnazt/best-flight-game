@@ -52,6 +52,22 @@ const River = (() => {
     { s: 26000, name: 'SEA LANE', runway: 'SEA 36' },
   ];
 
+  // Tributaries: smaller streams that join the Kapuas from one bank,
+  // each with its own bend — set-piece geography, not a straight river.
+  const TRIBUTARIES = [
+    { s: 5200, dir: -1 },
+    { s: 13100, dir: 1 },
+    { s: 19800, dir: -1 },
+  ];
+
+  // Longhouse rows nestled at the treeline, away from the cargo villages:
+  // a place, not a stripe. Each is a row of stilt houses on one bank.
+  const LONGHOUSES = [
+    { s: 6800, lat: -72 },
+    { s: 13400, lat: -70 },
+    { s: 23500, lat: -78 },
+  ];
+
   // Rings: one per ~750 m inside each leg, at a flown altitude.
   function buildRings() {
     const rings = [];
@@ -77,6 +93,8 @@ const River = (() => {
   }
 
   // Rainforest canopy speckles for one segment, deterministic by segment id.
+  // ~1 in 3 trees is a CLUMP: several crowns grown together, so the forest
+  // reads as clumps with canopy shading instead of uniform dots.
   function treesForSegment(segId) {
     const rnd = mulberry32(segId * 7919 + 13);
     const trees = [];
@@ -87,13 +105,14 @@ const River = (() => {
         off: side * (26 + rnd() * 130),
         size: 3 + rnd() * 7,
         shade: rnd(),
+        cluster: rnd() < 0.35,
       });
     }
     return trees;
   }
 
   return {
-    PATH_LEN, SEG, LEGS, VILLAGES, STRIPS,
+    PATH_LEN, SEG, LEGS, VILLAGES, STRIPS, TRIBUTARIES, LONGHOUSES,
     riverXAt, riverHalfAt, mulberry32, buildRings, monsoonWallNm, treesForSegment,
   };
 })();

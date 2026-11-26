@@ -149,6 +149,16 @@ const HUD = (() => {
     panel(ctx, 1028, 620, 240, 168);
     text(ctx, 'KAPUAS — RIVER MAP', 1148, 644, 14, AMBER, '700', 'center');
     const x0 = 1048, x1 = 1248, y0 = 654, y1 = 736;
+    // Storm front: a dark band closing in from upriver, drawn UNDER the
+    // river line so villages and the plane stay readable. Its edge sits
+    // at the wall's distance behind the plane, in sync with the timer.
+    const wallNm = River.monsoonWallNm(f.landfallSec);
+    const wallS = f.s - wallNm * 1852;
+    if (wallS > 0) {
+      const wy = y0 + (y1 - y0) * (wallS / River.PATH_LEN);
+      ctx.fillStyle = 'rgba(40, 24, 66, 0.6)';
+      ctx.fillRect(x0, y0, x1 - x0, Math.max(0, wy - y0));
+    }
     ctx.strokeStyle = '#6fa8bd'; ctx.lineWidth = 5; ctx.lineCap = 'round';
     ctx.beginPath();
     for (let s = 0; s <= River.PATH_LEN; s += 800) {
@@ -168,6 +178,15 @@ const HUD = (() => {
     ctx.fillStyle = AMBER;
     ctx.beginPath(); ctx.arc(px, py, 7, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = '#1a1206'; ctx.lineWidth = 2; ctx.stroke();
+    // Storm-front label, drawn last so it stays readable over the river,
+    // on a dark backing so the river line never strikes through the text.
+    if (wallS > 0) {
+      const wy = y0 + (y1 - y0) * (wallS / River.PATH_LEN);
+      const ly = Math.max(y0 + 13, wy - 4);
+      ctx.fillStyle = 'rgba(8, 18, 26, 0.78)';
+      ctx.fillRect(1066, ly - 13, 164, 17);
+      text(ctx, 'STORM FRONT · ' + wallNm.toFixed(1) + ' NM', 1148, ly, 12, '#c9a6ff', '700', 'center');
+    }
     // Numbered next stops, listed under the map.
     stops.forEach((st, i) => {
       text(ctx, (i + 1) + '  ' + st.name + ' · ' + st.kind + '  ' + fmtTime(st.etaSec), 1044, 756 + i * 12, 12, CREAM, '600');
