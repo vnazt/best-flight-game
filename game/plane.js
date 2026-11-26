@@ -62,12 +62,14 @@ function drawPlane(ctx, cx, cy, w, angle, propPhase) {
   ctx.fillStyle = 'rgba(10,25,40,0.26)';
   ctx.beginPath(); ctx.ellipse(0, 100 * u, 120 * u, 11 * u, 0, 0, Math.PI * 2); ctx.fill();
   // Floats: two pontoons parallel to the fuselage, on the ground side.
+  // Struts + floats sit on the WIDENED fuselage's ground side (v5): the
+  // strut feet and the pontoons move 13u down-left with the new edge.
   ctx.strokeStyle = '#3a2c1c'; ctx.lineWidth = 5 * u;
   ctx.beginPath();
-  ctx.moveTo(10.6 * u, 43.1 * u); ctx.lineTo(-0.2 * u, 52 * u);
-  ctx.moveTo(32.9 * u, 70.1 * u); ctx.lineTo(22.1 * u, 79 * u);
+  ctx.moveTo(0.6 * u, 51.4 * u); ctx.lineTo(-10.2 * u, 60.3 * u);
+  ctx.moveTo(22.9 * u, 78.4 * u); ctx.lineTo(12.1 * u, 87.3 * u);
   ctx.stroke();
-  for (const [fx, fy] of [[-0.2, 52], [22.1, 79]]) {
+  for (const [fx, fy] of [[-10.2, 60.3], [12.1, 87.3]]) {
     ctx.save();
     ctx.translate(fx * u, fy * u); ctx.rotate(-2.26);
     ctx.fillStyle = '#e8e2d2';
@@ -87,6 +89,15 @@ function drawPlane(ctx, cx, cy, w, angle, propPhase) {
   ctx.moveTo(81.2 * u, 17.1 * u); ctx.lineTo(90.2 * u, 27.9 * u);
   ctx.lineTo(5.4 * u, 97.9 * u); ctx.lineTo(-3.6 * u, 87.1 * u);
   ctx.closePath(); ctx.fill();
+  // Widen the fuselage (v5): scale x1.9 perpendicular to the fuselage axis
+  // so the body has real mass at 768x480 instead of reading as a pencil.
+  // Axis midpoint M=(-5,-1), axis angle -2.259 rad.
+  ctx.save();
+  ctx.translate(-5 * u, -1 * u);
+  ctx.rotate(-2.259);
+  ctx.scale(1, 1.9);
+  ctx.rotate(2.259);
+  ctx.translate(5 * u, 1 * u);
   // Fuselage: long tapered body, sun-lit sky side, shadowed ground side.
   const fg = ctx.createLinearGradient(20.4 * u, -13.7 * u, -10.4 * u, 11.7 * u);
   fg.addColorStop(0, '#f7ead0'); fg.addColorStop(0.5, '#e8c88f'); fg.addColorStop(1, '#a87a42');
@@ -132,6 +143,7 @@ function drawPlane(ctx, cx, cy, w, angle, propPhase) {
   ctx.beginPath();
   ctx.moveTo(41.5 * u, 49.5 * u); ctx.lineTo(56.5 * u, 45.2 * u); ctx.lineTo(50.3 * u, 59.5 * u);
   ctx.closePath(); ctx.fill();
+  ctx.restore(); // end of the widened-fuselage group (v5)
   // Main wing: horizontal, clear dihedral, shaded top, orange tips.
   const wg = ctx.createLinearGradient(0, 0, 0, 32 * u);
   wg.addColorStop(0, '#f7ead0'); wg.addColorStop(1, '#d9b878');

@@ -25,7 +25,7 @@ const SKIES = {
   },
   sunset: {
     name: 'GOLDEN SUNSET',
-    top: '#2c2a5e', mid: '#8a4a7d', low: '#f0915a',
+    top: '#35316e', mid: '#a05a86', low: '#f7ab62',
     sun: '#ffd98a', sunCore: '#fff2c0', haze: 'rgba(240,145,90,0.4)',
     ridgeFar: '#6b4a72', ridgeMid: '#5a5248', ridgeNear: '#4d5c43', forest: '#3d6b3a',
     forestDark: '#2a4d2e', forestLight: '#7fae4e', water: '#557a99',
@@ -47,7 +47,7 @@ const SKIES = {
 function riverCenter(t) {
   return 120 * Math.sin(t * 5.2 + 0.8) + 60 * Math.sin(t * 11.3 + 2.1);
 }
-function riverHalfWidth(t) { return 150 - 105 * t; } // narrows toward horizon
+function riverHalfWidth(t) { return 195 - 125 * t; } // v5: river 2x wider // narrows toward horizon
 
 // Villages along the river. side: -1 left bank, +1 right bank, 0 on the water.
 const VILLAGES = [
@@ -141,40 +141,43 @@ function drawClouds(ctx, sky, seedOff) {
   ctx.fillRect(0, HORIZON - 44, 1280, 70);
 }
 
+// Faceted low-poly ridges (v5): each mountain is a pair of triangles —
+// sunlit left face, shadowed right face — so the valley reads as real 3D
+// terrain like the neighbours' renders, not flat silhouettes. The far
+// layer gets a haze wash for atmospheric perspective.
 function drawRidges(ctx, sky) {
   for (const ridge of RIDGES) {
     const r = mulberry32(ridge.seed);
     const col = ridge.col === 'far' ? sky.ridgeFar : ridge.col === 'mid' ? sky.ridgeMid : sky.ridgeNear;
-    // Gradient fill: hazy light at the peaks, darker at the base — depth,
-    // not a flat triangle.
-    const rg = ctx.createLinearGradient(0, HORIZON - ridge.amp - 20, 0, HORIZON + 40);
-    rg.addColorStop(0, col);
-    rg.addColorStop(1, shade(col, -28));
-    ctx.fillStyle = rg;
-    ctx.beginPath(); ctx.moveTo(0, HORIZON + 40);
+    const baseY = HORIZON + 40;
     let x = -40;
     while (x < 1320) {
-      const w = 110 + r() * 170;
+      const w = 130 + r() * 180;
       const peak = HORIZON - 16 - r() * ridge.amp;
-      // Rounded peak: quadratic shoulders instead of a sharp spike.
-      ctx.quadraticCurveTo(x + w * 0.28, peak + 26, x + w / 2, peak);
-      ctx.quadraticCurveTo(x + w * 0.72, peak + 26, x + w, HORIZON + 30 + r() * 20);
+      const midX = x + w / 2;
+      // Sunlit face.
+      ctx.fillStyle = shade(col, 18);
+      ctx.beginPath();
+      ctx.moveTo(x, baseY); ctx.lineTo(midX, peak); ctx.lineTo(midX, baseY);
+      ctx.closePath(); ctx.fill();
+      // Shadow face.
+      ctx.fillStyle = shade(col, -32);
+      ctx.beginPath();
+      ctx.moveTo(midX, peak); ctx.lineTo(x + w, baseY); ctx.lineTo(midX, baseY);
+      ctx.closePath(); ctx.fill();
+      // Snow / sun glint on the highest peaks.
+      if (peak < HORIZON - 70) {
+        ctx.fillStyle = 'rgba(255,240,220,0.5)';
+        ctx.beginPath();
+        ctx.moveTo(midX - 12, peak + 18); ctx.lineTo(midX, peak); ctx.lineTo(midX + 12, peak + 18);
+        ctx.closePath(); ctx.fill();
+      }
       x += w;
     }
-    ctx.lineTo(1320, HORIZON + 40); ctx.closePath(); ctx.fill();
-    // Warm rim light on the sun side of each peak.
-    ctx.strokeStyle = 'rgba(255,200,120,0.35)'; ctx.lineWidth = 2;
-    ctx.beginPath();
-    const r2 = mulberry32(ridge.seed);
-    x = -40;
-    while (x < 1320) {
-      const w = 90 + r2() * 160;
-      const peak = HORIZON - 20 - r2() * ridge.amp;
-      ctx.moveTo(x + w / 2 - 14, peak + 22);
-      ctx.lineTo(x + w / 2, peak);
-      x += w;
+    if (ridge.col === 'far') {
+      ctx.fillStyle = sky.haze;
+      ctx.fillRect(0, HORIZON - 150, 1280, 190);
     }
-    ctx.stroke();
   }
 }
 
@@ -245,6 +248,16 @@ function drawRiver(ctx, sky, camT) {
     if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
   }
   ctx.stroke();
+  // Sun glitter (v5): seeded gold dashes on the water, concentrated along
+  // the sun's path down the river — the neighbours' water glitters.
+  const gr = mulberry32(31);
+  for (let i = 0; i < 30; i++) {
+    const t = 0.04 + gr() * 0.72;
+    const p = project(t, riverCenter(t) + (gr() - 0.5) * riverHalfWidth(t) * 1.1);
+    const w = (10 + gr() * 34) * p.s;
+    ctx.fillStyle = 'rgba(255,226,160,' + (0.25 + gr() * 0.4).toFixed(2) + ')';
+    ctx.fillRect(p.x - w / 2, p.y, w, 2.5);
+  }
   // Sandy banks.
   ctx.strokeStyle = sky.sand; ctx.lineWidth = 9;
   for (const side of [-1, 1]) {
@@ -271,6 +284,23 @@ function drawTributaries(ctx, sky) {
       if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
     }
     ctx.stroke();
+  }
+}
+
+// The marked water landing lane (v5): amber buoys down both banks of the
+// river from the next gate to the camera — the runway-equivalent ahead
+// that the neighbours always show, on the water instead of asphalt.
+function drawSeaLane(ctx, sky) {
+  for (const side of [-1, 1]) {
+    for (let i = 0; i < 7; i++) {
+      const t = 0.08 + i * 0.06;
+      const p = project(t, riverCenter(t) + side * (riverHalfWidth(t) - 14));
+      const r = Math.max(2.5, 5.5 * p.s);
+      ctx.fillStyle = 'rgba(255,182,46,0.35)';
+      ctx.beginPath(); ctx.arc(p.x, p.y, r * 2.4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ffb62e';
+      ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
+    }
   }
 }
 
@@ -307,7 +337,9 @@ function drawForest(ctx, sky) {
   }
 }
 
-function drawLonghouses(ctx, sky) {
+// skipLabel(lx, ly) — optional predicate; labels under the plane (chase
+// scene) are dropped instead of being half-covered by the wing (v5).
+function drawLonghouses(ctx, sky, skipLabel) {
   for (const lh of LONGHOUSES) {
     const p = project(lh.t, riverCenter(lh.t) + lh.side * (riverHalfWidth(lh.t) + 90));
     const w = 74 * p.s + 18, h = 20 * p.s + 8;
@@ -321,11 +353,12 @@ function drawLonghouses(ctx, sky) {
     ctx.closePath(); ctx.fill();
     ctx.font = 'bold ' + Math.max(12, Math.round(13 * p.s + 6)) + 'px monospace';
     ctx.textAlign = 'center';
-    if (p.x <= 820) { // never let the label run under the radio panel
+    const lx = p.x, ly = p.y - h * 1.9;
+    if (p.x <= 820 && !(skipLabel && skipLabel(lx, ly))) { // never let the label run under the radio panel
       ctx.strokeStyle = 'rgba(10,20,30,0.85)'; ctx.lineWidth = 3;
-      ctx.strokeText(lh.label, p.x, p.y - h * 1.9);
+      ctx.strokeText(lh.label, lx, ly);
       ctx.fillStyle = '#ffe9b0';
-      ctx.fillText(lh.label, p.x, p.y - h * 1.9);
+      ctx.fillText(lh.label, lx, ly);
     }
   }
 }

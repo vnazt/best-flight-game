@@ -212,10 +212,13 @@ function drawFooter(ctx) {
 }
 
 function drawRadio(ctx, m) {
-  panel(ctx, 922, 470, 330, 112, 10);
-  label(ctx, 'RADIO · ' + m.radio.from, 940, 496, 12, AMBER);
-  ctx.fillStyle = INK; ctx.font = '14px monospace'; ctx.textAlign = 'left';
-  wrapText(ctx, '"' + m.radio.text + '"', 940, 518, 294, 19);
+  // Slim two-line radio (v5): 64px tall in its v4 zone (y 470), clear of
+  // the WIND label (y 182) and the MONSOON WALL label (y 216-240) — the
+  // first v5 placement at y 170 collided with both.
+  panel(ctx, 922, 470, 330, 64, 10);
+  label(ctx, 'RADIO · ' + m.radio.from, 940, 490, 12, AMBER);
+  ctx.fillStyle = INK; ctx.font = '12px monospace'; ctx.textAlign = 'left';
+  wrapText(ctx, '"' + m.radio.text + '"', 940, 508, 294, 16);
 }
 
 function wrapText(ctx, text, x, y, maxW, lh) {

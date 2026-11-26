@@ -92,11 +92,13 @@ function drawCockpit(ctx, f, m, sky, stormT) {
   drawRunway(ctx, 640, 350, 428, 26, 150, '27');
   // Green HUD ladder + gate ring over the runway.
   ctx.strokeStyle = 'rgba(120,255,190,0.85)'; ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.arc(640, 300, 80, 0, Math.PI * 2); ctx.stroke();
-  ctx.beginPath(); ctx.arc(640, 300, 56, 0, Math.PI * 2); ctx.stroke();
+  // FIX (v5): the ring's bottom arc crossed the runway "27" numerals.
+  // Ring moved up (centre 284, r 76/54) and the labels sit above it.
+  ctx.beginPath(); ctx.arc(640, 284, 76, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(640, 284, 54, 0, Math.PI * 2); ctx.stroke();
   ctx.font = 'bold 13px monospace'; ctx.fillStyle = '#7dffbe'; ctx.textAlign = 'center';
-  ctx.fillText('GATE 6 · 0.2 NM', 640, 190);
-  ctx.fillText('RWY 27 LINEUP', 640, 214);
+  ctx.fillText('GATE 6 · 0.2 NM', 640, 166);
+  ctx.fillText('RWY 27 LINEUP', 640, 188);
   // Canopy frame pillars.
   ctx.fillStyle = '#0c141c';
   ctx.fillRect(0, 0, 90, 430);

@@ -23,43 +23,61 @@ function sky() { return SKIES[SKY_KEYS[state.skyMode]]; }
 function drawChaseScene() {
   const sk = sky();
   const f = state.flight;
-  const sunX = 880, sunY = 190, sunR = 34;
+  const sunX = 880, sunY = 190, sunR = 46; // v5: bigger golden-hour sun
   drawSky(ctx, sk, sunX, sunY, sunR);
   drawClouds(ctx, sk, 2);
   drawRidges(ctx, sk);
   drawGround(ctx, sk);
   drawRiver(ctx, sk, f.t);
   drawTributaries(ctx, sk);
+  drawSeaLane(ctx, sk); // v5: marked water lane, the runway-equivalent
   drawForest(ctx, sk);
-  drawLonghouses(ctx, sk);
+  // The plane's screen box (v5): any label inside it is dropped, not drawn
+  // half-covered by the wing/fuselage (the v5 "LONGHO" clip).
+  const planeBox = (x, y) => x > 340 && x < 930 && y > 460 && y < 740;
+  drawLonghouses(ctx, sk, planeBox);
   drawMist(ctx, sk, f.time * 0.05);
   // Storm first, then rings, then the plane — nothing important is ever
   // painted over by the curtain.
   drawStormFront(ctx, sk, state.stormT);
-  // Amber gate rings: the next ring big and lit, the following one dashed.
-  // FIX (v4): with the corrected projection the next ring sits UP the frame
-  // toward the horizon, well clear of the plane; the dashed preview is two
-  // gates ahead so it never crowds the main ring.
-  const g1 = GATES[state.mission.gatesPassed % GATES.length];
-  const g2 = GATES[(state.mission.gatesPassed + 2) % GATES.length];
-  const p1 = project(g1.t, g1.x);
-  const p2 = project(g2.t, g2.x);
-  drawGate(ctx, p2.x, p2.y - 40, 46 * p2.s + 26, null, true, 0.8);
-  drawGate(ctx, p1.x, p1.y - 60, 78 * p1.s + 40, null, false, 1);
-  // The plane: 300 wide (~23% of the frame), lower-centre, on the river,
+  // Amber gate rings (v5): a chain of four, labelled with distances,
+  // shrinking toward the horizon — the route reads as depth, not one ring.
+  // v4 showed one ring + one dashed preview; the neighbours show 4-5
+  // labelled rings (G-03 528m, G-04 784m...) — the chain is the win.
+  const ringDists = ['380 M', '640 M', '910 M', '1.2 KM'];
+  const gp = state.mission.gatesPassed;
+  const ringPts = [];
+  for (let i = 0; i < 4; i++) {
+    const g = GATES[(gp + i) % GATES.length];
+    const p = project(g.t, g.x);
+    const r = 78 * p.s + 40;
+    ringPts.push({ x: p.x, y: p.y - 60, r });
+    drawGate(ctx, p.x, p.y - 60, r, null, i > 0, 1 - i * 0.16);
+    if (i === 0) {
+      drawGateTag(ctx, p.x, p.y - 60, r, 'GATE 0' + g.n + ' · ' + ringDists[i]);
+    } else {
+      ctx.save();
+      ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center';
+      ctx.strokeStyle = 'rgba(10,20,30,0.9)'; ctx.lineWidth = 3;
+      const lab = 'G-0' + g.n + ' · ' + ringDists[i];
+      ctx.strokeText(lab, p.x, p.y - 60 - r - 10);
+      ctx.fillStyle = '#ffe9b0';
+      ctx.fillText(lab, p.x, p.y - 60 - r - 10);
+      ctx.restore();
+    }
+  }
+  // The plane: 400 wide (~31% of the frame), lower-centre, on the river,
   // nose pointing up-left toward the ring — never dead centre, never
-  // covering the ring or its label.
-  drawPlane(ctx, 700, 625, 300, 0, f.time * 9);
-  // Gate label on top of the plane — never hidden behind the fuselage.
-  drawGateTag(ctx, p1.x, p1.y - 60, 78 * p1.s + 40, 'GATE 0' + g1.n + ' · 380 M');
+  // covering the ring or its label. (v5: 300 was too small to read.)
+  drawPlane(ctx, 640, 595, 400, 0, f.time * 9);
   // Village labels on the near bank — never inside the radio panel zone,
   // never within 140 px of a gate ring.
   for (const v of VILLAGES) {
     if (v.t < 0.15 || v.t > 0.85) continue;
     const p = project(v.t, riverCenter(v.t) + (v.side || 1) * (riverHalfWidth(v.t) + 60));
     if (p.x > 830) continue;
-    if (Math.abs(p.x - p1.x) < 140 && Math.abs(p.y - (p1.y - 60)) < 90) continue;
-    if (Math.abs(p.x - p2.x) < 120 && Math.abs(p.y - (p2.y - 40)) < 70) continue;
+    if (ringPts.some((rp) => Math.abs(p.x - rp.x) < 140 && Math.abs(p.y - rp.y) < 90)) continue;
+    if (planeBox(p.x, p.y - 14)) continue; // never under the plane (v5)
     ctx.font = 'bold 13px monospace'; ctx.textAlign = 'center';
     ctx.strokeStyle = 'rgba(10,20,30,0.85)'; ctx.lineWidth = 3;
     ctx.strokeText(v.name + ' · ' + v.cargo, p.x, p.y - 14);
