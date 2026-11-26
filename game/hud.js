@@ -202,13 +202,13 @@ function drawChecklist(ctx, m) {
 
 function drawToast(ctx, text) {
   const w = ctx.measureText(text).width + 44;
-  panel(ctx, 640 - w / 2, 716, w, 40, 8);
-  label(ctx, text, 640, 742, 14, INK, 'center');
+  panel(ctx, 640 - w / 2, 716, w, 38, 8);
+  label(ctx, text, 640, 741, 14, INK, 'center');
 }
 
 function drawFooter(ctx) {
-  label(ctx, 'P  /  ESC  PAUSE', 560, 786, 12, DIM, 'center');
-  label(ctx, 'H  FLIGHT MANUAL', 720, 786, 12, DIM, 'center');
+  label(ctx, 'P  /  ESC  PAUSE', 560, 782, 12, DIM, 'center');
+  label(ctx, 'H  FLIGHT MANUAL', 720, 782, 12, DIM, 'center');
 }
 
 function drawRadio(ctx, m) {

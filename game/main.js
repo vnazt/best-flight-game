@@ -27,6 +27,7 @@ function drawChaseScene() {
   drawSky(ctx, sk, sunX, sunY, sunR);
   drawClouds(ctx, sk, 2);
   drawRidges(ctx, sk);
+  drawGround(ctx, sk);
   drawRiver(ctx, sk, f.t);
   drawTributaries(ctx, sk);
   drawForest(ctx, sk);
@@ -36,21 +37,29 @@ function drawChaseScene() {
   // painted over by the curtain.
   drawStormFront(ctx, sk, state.stormT);
   // Amber gate rings: the next ring big and lit, the following one dashed.
+  // FIX (v4): with the corrected projection the next ring sits UP the frame
+  // toward the horizon, well clear of the plane; the dashed preview is two
+  // gates ahead so it never crowds the main ring.
   const g1 = GATES[state.mission.gatesPassed % GATES.length];
-  const g2 = GATES[(state.mission.gatesPassed + 1) % GATES.length];
+  const g2 = GATES[(state.mission.gatesPassed + 2) % GATES.length];
   const p1 = project(g1.t, g1.x);
   const p2 = project(g2.t, g2.x);
   drawGate(ctx, p2.x, p2.y - 40, 46 * p2.s + 26, null, true, 0.8);
   drawGate(ctx, p1.x, p1.y - 60, 78 * p1.s + 40, null, false, 1);
-  // The plane, big in frame, 3/4 rear-quarter.
-  drawPlane(ctx, 640, 560, 400, -0.12, f.time * 9);
+  // The plane: 300 wide (~23% of the frame), lower-centre, on the river,
+  // nose pointing up-left toward the ring — never dead centre, never
+  // covering the ring or its label.
+  drawPlane(ctx, 700, 625, 300, 0, f.time * 9);
   // Gate label on top of the plane — never hidden behind the fuselage.
   drawGateTag(ctx, p1.x, p1.y - 60, 78 * p1.s + 40, 'GATE 0' + g1.n + ' · 380 M');
-  // Village labels on the near bank — never inside the radio panel zone.
+  // Village labels on the near bank — never inside the radio panel zone,
+  // never within 140 px of a gate ring.
   for (const v of VILLAGES) {
     if (v.t < 0.15 || v.t > 0.85) continue;
     const p = project(v.t, riverCenter(v.t) + (v.side || 1) * (riverHalfWidth(v.t) + 60));
     if (p.x > 830) continue;
+    if (Math.abs(p.x - p1.x) < 140 && Math.abs(p.y - (p1.y - 60)) < 90) continue;
+    if (Math.abs(p.x - p2.x) < 120 && Math.abs(p.y - (p2.y - 40)) < 70) continue;
     ctx.font = 'bold 13px monospace'; ctx.textAlign = 'center';
     ctx.strokeStyle = 'rgba(10,20,30,0.85)'; ctx.lineWidth = 3;
     ctx.strokeText(v.name + ' · ' + v.cargo, p.x, p.y - 14);
@@ -87,8 +96,8 @@ function stageShot(name) {
   if (name === 'cover') {
     state.mode = 'fly';
     Object.assign(f, { speedKt: 132, altFt: 310, hdg: 46, pitch: 2, bank: -7, throttle: 66, fuelKg: 84, hull: 100, vsFpm: -1170, time: 2.4 });
-    Object.assign(m, { gatesPassed: 3, score: 18450, landfallSec: 287 });
-    m.checklist[1].prog = '3/6';
+    Object.assign(m, { gatesPassed: 2, score: 18450, landfallSec: 287 });
+    m.checklist[1].prog = '2/6';
     state.stormT = 0.62;
   } else if (name === 'cockpit') {
     state.mode = 'cockpit';

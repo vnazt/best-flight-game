@@ -15,8 +15,9 @@ function drawHangar(ctx, sky, skyMode) {
   gg.addColorStop(0, '#2c4632'); gg.addColorStop(1, '#16241a');
   ctx.fillStyle = gg; ctx.fillRect(0, 420, 1280, 380);
   drawRunway(ctx, 640, 430, 760, 60, 380, '27');
-  // The selected aircraft sitting on the runway, small in frame.
-  drawPlane(ctx, 640, 650, 260, 0, 1.2);
+  // The selected aircraft sitting on the runway, side profile — a chase
+  // view here reads as a crashed X; a side profile reads as an aircraft.
+  drawPlaneSide(ctx, 640, 640, 260);
   // Left panel: title + aircraft hangar.
   panel(ctx, 28, 22, 470, 640, 12);
   label(ctx, 'KAPUAS RIVER RUN', 52, 62, 30, INK);
@@ -94,8 +95,8 @@ function drawCockpit(ctx, f, m, sky, stormT) {
   ctx.beginPath(); ctx.arc(640, 300, 80, 0, Math.PI * 2); ctx.stroke();
   ctx.beginPath(); ctx.arc(640, 300, 56, 0, Math.PI * 2); ctx.stroke();
   ctx.font = 'bold 13px monospace'; ctx.fillStyle = '#7dffbe'; ctx.textAlign = 'center';
-  ctx.fillText('GATE 6 · 0.2 NM', 640, 196);
-  ctx.fillText('RWY 27 LINEUP', 640, 252);
+  ctx.fillText('GATE 6 · 0.2 NM', 640, 190);
+  ctx.fillText('RWY 27 LINEUP', 640, 214);
   // Canopy frame pillars.
   ctx.fillStyle = '#0c141c';
   ctx.fillRect(0, 0, 90, 430);
