@@ -330,6 +330,180 @@ function drawPlaneChaseV6(ctx, cx, cy, w) {
   ctx.restore();
 }
 
+// drawPlaneChaseV7 — v7 COVER ONLY. Rear-below chase view of the Otter-9
+// (the v6 composition: foreshortened fuselage under the ring, horizontal
+// wing, floats below) WITH the aircraft cues v6 lacked: a real swept fin
+// rising off the tail's left flank, THREE cockpit windows on the nose, a
+// thicker dihedral wing, and stronger belly shading. drawPlane (live game)
+// and drawPlaneChaseV6 are untouched.
+function drawPlaneChaseV7(ctx, cx, cy, w, propPhase) {
+  const u = w / 400;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(-0.05); // faint bank
+  // Soft shadow on the water, far below the tail.
+  ctx.fillStyle = 'rgba(10,25,40,0.28)';
+  ctx.beginPath(); ctx.ellipse(0, 208, 150, 12, 0, 0, Math.PI * 2); ctx.fill();
+
+  // Floats FIRST (they hang below the fuselage, flanking it with a clear
+  // gap so they read as pontoons, not as part of the body).
+  for (const s of [-1, 1]) {
+    ctx.save();
+    ctx.translate(s * 105, 78);
+    const fg = ctx.createLinearGradient(-16, 0, 16, 0);
+    fg.addColorStop(0, '#8a6a3e'); fg.addColorStop(0.4, '#ece5d3'); fg.addColorStop(1, '#c9b98f');
+    ctx.fillStyle = fg;
+    ctx.beginPath();
+    ctx.moveTo(-14, -138); ctx.lineTo(14, -138);
+    ctx.lineTo(17, 108); ctx.quadraticCurveTo(0, 124, -17, 108);
+    ctx.closePath(); ctx.fill();
+    // Red nose tip + sun glint down the outer edge.
+    ctx.fillStyle = '#c94f2e';
+    ctx.beginPath();
+    ctx.moveTo(-14, -138); ctx.lineTo(14, -138);
+    ctx.lineTo(11, -118); ctx.lineTo(-11, -118);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(255,240,200,0.9)';
+    ctx.fillRect((s > 0 ? 9 : -14), -132, 5, 226);
+    ctx.restore();
+    // Struts from the fuselage flank down to each float.
+    ctx.strokeStyle = '#3a2c1c'; ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(s * 70, 108); ctx.lineTo(s * 105, 96);
+    ctx.moveTo(s * 62, 40); ctx.lineTo(s * 105, 28);
+    ctx.stroke();
+  }
+
+  // Horizontal stabilisers at the tail (near camera): clearly SMALLER than
+  // the main wing, gold with orange tips, slight dihedral.
+  for (const s of [-1, 1]) {
+    const sg = ctx.createLinearGradient(0, 96, 0, 150);
+    sg.addColorStop(0, '#f7ead0'); sg.addColorStop(1, '#d9b878');
+    ctx.fillStyle = sg;
+    ctx.beginPath();
+    ctx.moveTo(s * 26, 118); ctx.lineTo(s * 150, 96);
+    ctx.lineTo(s * 150, 120); ctx.lineTo(s * 26, 142);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#d97b2e';
+    ctx.fillRect(s > 0 ? 128 : -150, 99, 22, 21);
+  }
+
+  // Fuselage: a FAT tapered body — wide at the tail (near camera), gently
+  // narrowing to a rounded nose. Stronger shading than v6: bright crown,
+  // dark belly edges.
+  const bg = ctx.createLinearGradient(-88, 0, 88, 0);
+  bg.addColorStop(0, '#7a5a30'); bg.addColorStop(0.25, '#dfb273'); bg.addColorStop(0.5, '#f2ddab');
+  bg.addColorStop(0.75, '#dfb273'); bg.addColorStop(1, '#7a5a30');
+  ctx.fillStyle = bg;
+  ctx.beginPath();
+  ctx.moveTo(-88, 150);
+  ctx.quadraticCurveTo(-78, 40, -72, 0);
+  ctx.quadraticCurveTo(-62, -70, -46, -90);
+  ctx.quadraticCurveTo(-20, -118, 0, -118);
+  ctx.quadraticCurveTo(20, -118, 46, -90);
+  ctx.quadraticCurveTo(62, -70, 72, 0);
+  ctx.quadraticCurveTo(78, 40, 88, 150);
+  ctx.quadraticCurveTo(0, 168, -88, 150);
+  ctx.closePath(); ctx.fill();
+  // Sunlit crown spine (parallel band) + thin red cheatlines on the flanks.
+  ctx.fillStyle = 'rgba(255,240,200,0.5)';
+  ctx.beginPath();
+  ctx.moveTo(-15, -104); ctx.lineTo(15, -104);
+  ctx.lineTo(20, 150); ctx.lineTo(-20, 150);
+  ctx.closePath(); ctx.fill();
+  for (const s of [-1, 1]) {
+    ctx.fillStyle = '#c94f2e';
+    ctx.fillRect(s > 0 ? 58 : -66, -30, 8, 168);
+  }
+  // Tail cone end, seen from directly behind.
+  ctx.fillStyle = '#5a3d24';
+  ctx.beginPath(); ctx.ellipse(0, 156, 34, 11, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#2a2a2a';
+  ctx.beginPath(); ctx.arc(0, 156, 4, 0, Math.PI * 2); ctx.fill();
+  // Belly panel seams break up the big tan mass.
+  ctx.strokeStyle = 'rgba(90,61,36,0.4)'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(-62, 96); ctx.lineTo(62, 96); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-68, 34); ctx.lineTo(68, 34); ctx.stroke();
+
+  // VERTICAL FIN (v7): a swept fin rising off the tail's LEFT flank,
+  // leaning only slightly back toward the tail, red with a white stripe
+  // and gold tip. Wide base, short lean, tip clearly OUTSIDE the fuselage
+  // silhouette — so it reads as a fin, never as a ribbon on the body.
+  ctx.fillStyle = '#c94f2e';
+  ctx.beginPath();
+  ctx.moveTo(-82, 118);
+  ctx.lineTo(-38, 138);
+  ctx.lineTo(-72, 32);
+  ctx.quadraticCurveTo(-88, 25, -104, 18);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#f2e3c2'; ctx.lineWidth = 9;
+  ctx.beginPath();
+  ctx.moveTo(-68, 125); ctx.lineTo(-88, 28); ctx.stroke();
+  ctx.strokeStyle = '#ffd98a'; ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.moveTo(-72, 32); ctx.quadraticCurveTo(-88, 25, -104, 18); ctx.stroke();
+
+  // Cockpit windows (v7): THREE dark glass panes on the upper nose, clear
+  // of the prop disc, each with a sky glint on the middle one. Drawn
+  // BEFORE the wing so its leading edge overlaps their lower rims.
+  for (let i = 0; i < 3; i++) {
+    const y = -106 + i * 21;
+    ctx.save();
+    ctx.translate(22 + i * 3, y);
+    ctx.rotate(-0.21);
+    ctx.fillStyle = '#16283a';
+    ctx.beginPath(); ctx.ellipse(0, 0, 13, 8, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+  ctx.fillStyle = 'rgba(255,255,255,0.75)';
+  ctx.beginPath(); ctx.ellipse(22, -87, 5, 3, -0.21, 0, Math.PI * 2); ctx.fill();
+
+  // Main high wing: THICK chord with dihedral (tips raised), sunlit
+  // leading edge, shadowed trailing edge. Far (right) half shortened so
+  // its tip stays clear of the SINTANG label.
+  const wg = ctx.createLinearGradient(0, -82, 0, -14);
+  wg.addColorStop(0, '#f7ead0'); wg.addColorStop(1, '#c9a45e');
+  ctx.fillStyle = wg;
+  ctx.beginPath();
+  ctx.moveTo(-205, -82); ctx.lineTo(-24, -62);
+  ctx.lineTo(24, -62); ctx.lineTo(170, -82);
+  ctx.lineTo(170, -34); ctx.lineTo(24, -14);
+  ctx.lineTo(-24, -14); ctx.lineTo(-205, -34);
+  ctx.closePath(); ctx.fill();
+  // Bright leading-edge line + dark trailing-edge strip = thickness.
+  ctx.strokeStyle = 'rgba(255,248,225,0.7)'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(-205, -82); ctx.lineTo(-24, -62); ctx.lineTo(24, -62); ctx.lineTo(170, -82); ctx.stroke();
+  ctx.fillStyle = 'rgba(90,61,36,0.55)';
+  ctx.fillRect(-205, -38, 375, 5);
+  ctx.fillStyle = '#d97b2e';
+  ctx.fillRect(-205, -82, 22, 46);
+  ctx.fillRect(148, -82, 22, 46);
+  ctx.fillStyle = '#33506b';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  wingText(ctx, 'OTTER-9', -108, -48, 140, 16);
+  wingText(ctx, 'KAPUAS', 95, -48, 120, 16);
+  ctx.textBaseline = 'alphabetic';
+  // Nav lights on the wing tips.
+  ctx.fillStyle = '#ff3b30';
+  ctx.beginPath(); ctx.arc(-207, -58, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#2ecc71';
+  ctx.beginPath(); ctx.arc(172, -58, 5, 0, Math.PI * 2); ctx.fill();
+
+  // Prop disc at the nose: BIG, bright, clearly visible inside the ring.
+  ctx.save();
+  ctx.translate(0, -114);
+  ctx.fillStyle = 'rgba(225,230,240,0.55)';
+  ctx.beginPath(); ctx.ellipse(0, 0, 14, 40, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 2.5;
+  for (let i = 0; i < 3; i++) {
+    const a0 = (propPhase || 0) + i * (Math.PI * 2 / 3);
+    ctx.beginPath(); ctx.ellipse(0, 0, 11, 33, 0, a0, a0 + 0.9); ctx.stroke();
+  }
+  ctx.fillStyle = '#2a2a2a';
+  ctx.beginPath(); ctx.arc(0, 0, 7, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  ctx.restore();
+}
+
 // Side profile of the floatplane, for the hangar screen: fuselage
 // horizontal (nose right), high wing seen edge-on, vertical fin at the
 // tail, floats below. A chase view on the runway reads as a crashed X;

@@ -95,7 +95,7 @@ function drawChaseScene() {
 // ONLY state.shot === 'cover' here; drawChaseScene keeps serving live play.
 const COVER_VP = { x: 640, y: 300 };
 const COVER_CENTRE = [[300, 640], [340, 638], [400, 632], [500, 612], [620, 588], [800, 668]];
-const COVER_HALF = [[300, 10], [340, 34], [400, 56], [500, 82], [620, 120], [800, 170]];
+const COVER_HALF = [[300, 10], [340, 34], [400, 56], [500, 82], [620, 120], [800, 256]]; // v7: river ~40% wide at the bottom edge
 
 function coverLerp(pts, y) {
   if (y <= pts[0][0]) return pts[0][1];
@@ -122,14 +122,28 @@ function drawCoverSky(ctx) {
   ctx.fillRect(sx - sr * 4.2, sy - sr * 4.2, sr * 8.4, sr * 8.4);
   ctx.fillStyle = '#fff6cf';
   ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); ctx.fill();
-  // A few flat clouds, kept high and clear of the centre.
-  ctx.fillStyle = 'rgba(255,246,232,0.9)';
-  for (const [cx, cy, w, h] of [[150, 92, 120, 14], [1060, 66, 150, 16], [300, 158, 96, 12], [1140, 190, 110, 13]]) {
+  // Layered clouds (v7): high thin streaks + low golden-bellied puffs,
+  // so the upper sky is never empty. Sun streaks near the horizon.
+  ctx.fillStyle = 'rgba(255,246,232,0.45)';
+  for (const [cx, cy, w, h] of [[180, 64, 200, 8], [520, 40, 260, 7], [900, 78, 220, 8], [1150, 44, 180, 7], [340, 110, 240, 8]]) {
+    ctx.beginPath(); ctx.ellipse(cx, cy, w, h, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  for (const [cx, cy, w, h] of [[150, 190, 130, 16], [420, 150, 110, 14], [1020, 170, 140, 16], [1180, 230, 120, 14], [700, 120, 90, 12]]) {
+    ctx.fillStyle = 'rgba(255,246,232,0.9)';
     ctx.beginPath();
     ctx.ellipse(cx, cy, w, h, 0, 0, Math.PI * 2);
     ctx.ellipse(cx + w * 0.4, cy - h * 0.5, w * 0.55, h * 0.85, 0, 0, Math.PI * 2);
     ctx.fill();
+    ctx.fillStyle = 'rgba(255,200,120,0.55)';
+    ctx.beginPath(); ctx.ellipse(cx, cy + h * 0.55, w * 0.8, h * 0.4, 0, 0, Math.PI * 2); ctx.fill();
   }
+  // Sun streaks: thin gold bars fanning from the sun toward the horizon.
+  ctx.fillStyle = 'rgba(255,210,130,0.20)';
+  ctx.fillRect(420, 252, 500, 5);
+  ctx.fillStyle = 'rgba(255,210,130,0.14)';
+  ctx.fillRect(480, 288, 380, 4);
+  ctx.fillStyle = 'rgba(255,210,130,0.10)';
+  ctx.fillRect(540, 318, 260, 4);
   // Monsoon wall: a dark storm mass FAR away at the right end of the
   // horizon, with a thin rain curtain — never a blob mid-frame.
   ctx.fillStyle = 'rgba(38,34,66,0.92)';
@@ -157,6 +171,31 @@ function drawCoverValley(ctx) {
   gg.addColorStop(0, '#33522f'); gg.addColorStop(1, '#12251a');
   ctx.fillStyle = gg;
   ctx.fillRect(0, 300, 1280, 500);
+  // Far hazy ridge (v7): a pale, low-contrast band BEHIND the v6 walls so
+  // the valley has far/mid/near depth, with snow glints on its two peaks.
+  const fr = mulberry32(911);
+  ctx.fillStyle = '#8a7a8a';
+  let fx = -40;
+  const farPeaks = [];
+  while (fx < 1320) {
+    const w = 200 + fr() * 220;
+    const peak = 218 + fr() * 44;
+    const mx = fx + w / 2;
+    farPeaks.push([mx, peak]);
+    ctx.beginPath();
+    ctx.moveTo(fx, 310); ctx.lineTo(mx, peak); ctx.lineTo(fx + w, 310);
+    ctx.closePath(); ctx.fill();
+    fx += w * 0.82;
+  }
+  ctx.fillStyle = 'rgba(255,220,170,0.30)';
+  ctx.fillRect(0, 230, 1280, 85);
+  farPeaks.sort((a, b) => a[1] - b[1]);
+  ctx.fillStyle = 'rgba(255,244,230,0.75)';
+  for (const [mx, peak] of farPeaks.slice(0, 2)) {
+    ctx.beginPath();
+    ctx.moveTo(mx - 16, peak + 22); ctx.lineTo(mx, peak); ctx.lineTo(mx + 16, peak + 22);
+    ctx.closePath(); ctx.fill();
+  }
   // Faceted walls: base polygon + alternating sun/shadow facet triangles
   // + snow glints on the highest peaks + haze wash near the vanishing point.
   const walls = [
@@ -229,8 +268,8 @@ function drawCoverRiver(ctx) {
   wg.addColorStop(0, '#2f7fb0'); wg.addColorStop(1, '#9ed8ec');
   ctx.fillStyle = wg; ctx.fill();
   // Soft gold streak down the river centre (sun path) + darker water
-  // along the banks so the river reads as water, not a road.
-  ctx.strokeStyle = 'rgba(255,220,150,0.35)'; ctx.lineWidth = 14;
+  // along the banks so the river reads as water, not a road. v7: wider.
+  ctx.strokeStyle = 'rgba(255,220,150,0.45)'; ctx.lineWidth = 22;
   ctx.beginPath();
   for (let y = 320; y <= 800; y += 20) {
     const x = coverLerp(COVER_CENTRE, y);
@@ -247,7 +286,7 @@ function drawCoverRiver(ctx) {
     ctx.stroke();
   }
   const gr = mulberry32(31);
-  for (let i = 0; i < 42; i++) {
+  for (let i = 0; i < 60; i++) { // v7: denser glitter on the wider river
     const y = 320 + gr() * 460;
     const f = (800 - y) / 500;
     const x = coverLerp(COVER_CENTRE, y) + (gr() - 0.5) * coverLerp(COVER_HALF, y) * 1.2;
@@ -454,6 +493,53 @@ function drawCoverMinimap(ctx, m) {
   ctx.beginPath(); ctx.arc(px, 640 + 0.42 * 110, 5, 0, Math.PI * 2); ctx.fill();
 }
 
+function drawCoverCanopy(ctx) {
+  // Rainforest canopy clusters (v7): stacked 2-tone ellipse crowns along
+  // the banks in the lower frame, so the valley floor is forest, not flat
+  // green. Seeded and deterministic.
+  const r = mulberry32(4242);
+  for (let i = 0; i < 24; i++) {
+    const y = 470 + r() * 300;
+    const side = r() < 0.5 ? -1 : 1;
+    const bankX = coverLerp(COVER_CENTRE, y) + side * coverLerp(COVER_HALF, y);
+    const x = bankX + side * (30 + r() * 150);
+    if (x < 24 || x > 1256) continue;
+    const h = 20 + r() * 26;
+    ctx.fillStyle = '#1d3a24';
+    ctx.beginPath(); ctx.ellipse(x, y - h * 0.4, h * 0.9, h * 0.55, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#3d6b3a';
+    ctx.beginPath(); ctx.ellipse(x - h * 0.15, y - h * 0.75, h * 0.7, h * 0.5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#7fae4e';
+    ctx.beginPath(); ctx.ellipse(x + h * 0.2, y - h * 0.9, h * 0.4, h * 0.28, 0, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+function drawCoverLonghouses(ctx) {
+  // Longhouses with warm lit windows (v7): stilt houses on the banks, no
+  // labels — the glow is the point. Positions stay clear of every panel.
+  for (const [x, y, w] of [[300, 565, 92], [930, 700, 96], [1120, 480, 88]]) {
+    const h = 26;
+    ctx.fillStyle = '#4a2f1c';
+    ctx.fillRect(x - w / 2, y - h, w, h * 0.72);
+    ctx.fillStyle = '#8a5a28';
+    ctx.beginPath();
+    ctx.moveTo(x - w / 2 - 6, y - h * 0.72);
+    ctx.lineTo(x, y - h * 1.75);
+    ctx.lineTo(x + w / 2 + 6, y - h * 0.72);
+    ctx.closePath(); ctx.fill();
+    // Stilt legs.
+    ctx.fillStyle = '#3a2412';
+    for (let i = -1; i <= 1; i++) ctx.fillRect(x + i * w * 0.32 - 2, y - h * 0.28, 4, h * 0.3);
+    // Warm windows + glow.
+    ctx.fillStyle = '#ffd98a';
+    for (let i = 0; i < 3; i++) {
+      ctx.fillRect(x - w * 0.32 + i * w * 0.3, y - h * 0.62, 10, 9);
+    }
+    ctx.fillStyle = 'rgba(255,217,138,0.25)';
+    ctx.beginPath(); ctx.ellipse(x, y - h * 0.55, w * 0.45, 12, 0, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
 function drawCoverScene() {
   const f = state.flight, m = state.mission;
   drawCoverSky(ctx);
@@ -461,6 +547,8 @@ function drawCoverScene() {
   drawCoverRiver(ctx);
   drawCoverSeaLane(ctx);
   drawCoverTrees(ctx);
+  drawCoverCanopy(ctx);
+  drawCoverLonghouses(ctx);
   // Village labels on the banks, clear of every panel and the ring chain.
   for (const [txt, x, y] of [['NANGA ERA · MEDICINE', 400, 600], ['SINTANG · MAIL', 880, 600]]) {
     ctx.font = 'bold 14px monospace'; ctx.textAlign = 'center';
@@ -473,8 +561,8 @@ function drawCoverScene() {
   drawCoverRing(ctx, 628, 392, 90, 'GATE 03 · 380 M', 'right');
   drawCoverRing(ctx, 626, 340, 30, 'G-05 · 640 M', 'left');
   drawCoverRing(ctx, 624, 272, 16, 'G-06 · 910 M', 'left');
-  // The Otter-9, rear-below chase view, nose at the big ring's centre.
-  drawPlaneChaseV6(ctx, 624, 585, 400);
+  // The Otter-9 v7: fresh 3/4 rear-quarter chase view, nose at the ring chain.
+  drawPlaneChaseV7(ctx, 624, 585, 400, f.time * 9);
   // Decluttered HUD: 7 panels + 1 slim radio line. No footer, no pills,
   // no storm banner, no big radio panel. Smallest functional text 14px.
   drawCoverTitle(ctx);
