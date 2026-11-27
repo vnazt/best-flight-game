@@ -1,250 +1,174 @@
-// hud.js — the GULLWING-style HUD frame.
-// Dark navy rounded panels, amber accents, big readable numbers:
-// title card, compass tape, mission card, AIRSPEED / ALTITUDE,
-// flight instruments, minimap, wind, checklist, storm banner, radio.
+// hud.js — the NEW glass HUD (REBUILD-0).
+// No dark cards: thin translucent strips, big bare numbers with a shadow,
+// text-only checklist rows. Seven elements, all ≥18px at 1280, nothing
+// clipped or colliding at 768px. Same HUD serves the chase view, live play
+// and the cover — one look, one code path.
 'use strict';
 
-const PANEL = 'rgba(8,32,48,0.88)';
-const PANEL_EDGE = 'rgba(120,180,210,0.25)';
-const INK = '#eaf6ff';
-const DIM = '#9db8c8';
-const AMBER = '#ffb62e';
-const GREEN = '#37e08a';
+const HUD_INK = '#eef6ff';
+const HUD_DIM = '#b8cfe0';
+const HUD_AMBER = '#ffd98a';
+const HUD_GLASS = 'rgba(8,20,32,0.32)';
+const HUD_EDGE = 'rgba(255,255,255,0.20)';
 
-function panel(ctx, x, y, w, h, r) {
-  ctx.fillStyle = PANEL;
-  ctx.strokeStyle = PANEL_EDGE; ctx.lineWidth = 1.5;
+function glassChip(ctx, x, y, w, h, r) {
+  ctx.fillStyle = HUD_GLASS;
+  ctx.strokeStyle = HUD_EDGE;
+  ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-  ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-  ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.roundRect(x, y, w, h, r);
+  ctx.fill();
+  ctx.stroke();
 }
 
-function label(ctx, text, x, y, size, color, align) {
-  ctx.fillStyle = color || DIM;
+// Big bare number: white fill + dark outline, readable over any terrain.
+function bigNumber(ctx, text, x, y, size, align) {
   ctx.font = 'bold ' + size + 'px monospace';
   ctx.textAlign = align || 'left';
+  ctx.lineWidth = 5;
+  ctx.strokeStyle = 'rgba(8,20,32,0.85)';
+  ctx.strokeText(text, x, y);
+  ctx.fillStyle = HUD_INK;
   ctx.fillText(text, x, y);
 }
 
-function drawTitleCard(ctx, status) {
-  panel(ctx, 28, 22, 330, 92, 10);
-  label(ctx, 'KAPUAS RIVER RUN', 46, 56, 24, INK);
-  label(ctx, 'OTTER-9  /  FLIGHT TELEMETRY', 46, 82, 13, DIM);
-  panel(ctx, 28, 122, 330, 34, 8);
-  ctx.fillStyle = GREEN;
-  ctx.beginPath(); ctx.arc(48, 139, 5, 0, Math.PI * 2); ctx.fill();
-  label(ctx, '● ' + status, 62, 145, 14, INK);
-  label(ctx, 'LIVE', 318, 145, 13, DIM, 'right');
+function hudLabel(ctx, text, x, y, size, color, align) {
+  ctx.font = (size >= 20 ? 'bold ' : '') + size + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = 'rgba(8,20,32,0.8)';
+  ctx.strokeText(text, x, y);
+  ctx.fillStyle = color || HUD_INK;
+  ctx.fillText(text, x, y);
 }
 
-function drawCompass(ctx, hdg) {
-  panel(ctx, 430, 22, 420, 64, 10);
-  ctx.fillStyle = DIM; ctx.font = '13px monospace'; ctx.textAlign = 'center';
-  // Marks generated around the current heading, every 10 degrees.
-  for (let deg = Math.floor((hdg - 60) / 10) * 10; deg <= hdg + 60; deg += 10) {
+// Top glass strip: title left, compass tape centre, landfall right.
+function drawTopStrip(ctx, f, m) {
+  glassChip(ctx, 16, 14, 1248, 56, 12);
+  hudLabel(ctx, 'KAPUAS RIVER RUN', 36, 40, 24, HUD_INK);
+  hudLabel(ctx, 'OTTER-9', 36, 60, 14, HUD_DIM);
+  // Compass tape, centred.
+  ctx.fillStyle = HUD_DIM;
+  ctx.font = '14px monospace';
+  ctx.textAlign = 'center';
+  for (let deg = Math.floor((f.hdg - 60) / 10) * 10; deg <= f.hdg + 60; deg += 10) {
     const norm = ((deg % 360) + 360) % 360;
-    const d = ((norm - hdg + 540) % 360) - 180;
+    const d = ((norm - f.hdg + 540) % 360) - 180;
     if (Math.abs(d) > 62) continue;
     const x = Math.max(452, Math.min(828, 640 + d * 3.1));
-    const txt = norm === 0 ? 'N' : norm === 90 ? 'E' : norm === 180 ? 'S' : norm === 270 ? 'W'
-      : String(norm).padStart(3, '0');
-    ctx.fillText(txt, x, 44);
-    ctx.fillRect(x - 1, 52, 2, 8);
+    const txt = norm === 0 ? 'N' : norm === 90 ? 'E' : norm === 180 ? 'S' : norm === 270 ? 'W' : String(norm).padStart(3, '0');
+    ctx.fillText(txt, x, 36);
+    ctx.fillRect(x - 1, 42, 2, 7);
   }
-  // Amber marker on the next gate bearing.
-  ctx.fillStyle = AMBER;
+  ctx.fillStyle = HUD_AMBER;
   ctx.beginPath();
-  ctx.moveTo(640, 28); ctx.lineTo(632, 40); ctx.lineTo(648, 40); ctx.closePath(); ctx.fill();
-  label(ctx, 'HDG  ' + String(Math.round(hdg)).padStart(3, '0') + '°', 640, 78, 17, INK, 'center');
+  ctx.moveTo(640, 20); ctx.lineTo(632, 32); ctx.lineTo(648, 32); ctx.closePath(); ctx.fill();
+  hudLabel(ctx, 'HDG ' + String(Math.round(f.hdg)).padStart(3, '0') + '°', 640, 62, 16, HUD_INK, 'center');
+  hudLabel(ctx, 'LANDFALL ' + fmtClock(m.landfallSec) + '  ·  STORM 2.6 NM', 1244, 48, 16, '#ff9a7a', 'right');
 }
 
-function drawMissionCard(ctx, m) {
+// Big speed / altitude, bare text, mid-frame left and right.
+function drawSpeedAlt(ctx, f) {
+  hudLabel(ctx, 'AIRSPEED', 40, 300, 16, HUD_DIM);
+  bigNumber(ctx, String(Math.round(f.speedKt)), 40, 356, 64);
+  hudLabel(ctx, 'KNOTS', 40, 382, 16, HUD_DIM);
+  hudLabel(ctx, 'ALTITUDE', 1240, 300, 16, HUD_DIM, 'right');
+  bigNumber(ctx, String(Math.round(f.altFt)), 1240, 356, 64, 'right');
+  hudLabel(ctx, 'FEET MSL', 1240, 382, 16, HUD_DIM, 'right');
+}
+
+// Mission as four plain text rows (no big card), top-right under the strip.
+function drawMissionRows(ctx, m) {
   const s = m.sortie;
-  panel(ctx, 922, 22, 330, 140, 10);
-  label(ctx, '0' + s.n + '  /  RIVER SORTIE', 940, 48, 13, AMBER);
-  label(ctx, s.name, 940, 82, 30, INK);
-  label(ctx, s.brief, 940, 106, 13, DIM);
-  label(ctx, 'GATES  ' + String(m.gatesPassed).padStart(2, '0') + ' / ' + String(m.gatesTotal).padStart(2, '0'), 940, 134, 15, INK);
-  label(ctx, 'PTS  ' + fmtScore(m.score), 1234, 134, 15, INK, 'right');
-  label(ctx, 'NEXT  380 M', 940, 152, 12, DIM);
+  let y = 96;
+  hudLabel(ctx, '0' + s.n + '  /  ' + s.name.toUpperCase(), 1244, y, 18, HUD_AMBER, 'right');
+  y += 26;
+  hudLabel(ctx, s.brief, 1244, y, 15, HUD_DIM, 'right');
+  y += 28;
+  hudLabel(ctx, 'GATES ' + String(m.gatesPassed).padStart(2, '0') + ' / ' + String(m.gatesTotal).padStart(2, '0') + '    PTS ' + fmtScore(m.score), 1244, y, 16, HUD_INK, 'right');
+  y += 26;
+  for (const c of m.checklist) {
+    const label = (c.done ? '✓ ' : '○ ') + c.label + (c.prog ? '  ' + c.prog : '');
+    hudLabel(ctx, label, 1244, y, 16, c.done ? HUD_DIM : HUD_INK, 'right');
+    y += 24;
+  }
 }
 
-function drawSpeedAlt(ctx, speedKt, altFt) {
-  panel(ctx, 28, 300, 150, 108, 10);
-  label(ctx, 'AIRSPEED', 46, 330, 13, DIM);
-  label(ctx, String(Math.round(speedKt)), 46, 386, 44, INK);
-  label(ctx, 'KNOTS', 46, 398, 12, DIM);
-  panel(ctx, 1102, 300, 150, 108, 10);
-  label(ctx, 'ALTITUDE', 1120, 330, 13, DIM);
-  label(ctx, String(Math.round(altFt)), 1120, 386, 44, INK);
-  label(ctx, 'FEET MSL', 1120, 398, 12, DIM);
-}
-
-function drawInstruments(ctx, f, m) {
-  panel(ctx, 28, 620, 330, 150, 10);
-  label(ctx, 'FLIGHT INSTRUMENTS', 46, 646, 13, DIM);
-  // Attitude ball.
-  const ax = 96, ay = 700, ar = 42;
-  ctx.save();
-  ctx.beginPath(); ctx.arc(ax, ay, ar, 0, Math.PI * 2); ctx.clip();
-  ctx.fillStyle = '#3f8fd0'; ctx.fillRect(ax - ar, ay - ar, ar * 2, ar);
-  ctx.fillStyle = '#c98a4e'; ctx.fillRect(ax - ar, ay, ar * 2, ar);
-  ctx.save();
-  ctx.translate(ax, ay); ctx.rotate((f.bank || 0) * Math.PI / 180);
-  ctx.translate(0, (f.pitch || 0) * 2);
-  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(-ar, 0); ctx.lineTo(ar, 0); ctx.stroke();
-  ctx.restore();
-  ctx.strokeStyle = '#ffb62e'; ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.moveTo(ax - 16, ay); ctx.lineTo(ax + 16, ay); ctx.stroke();
-  ctx.beginPath(); ctx.arc(ax, ay, ar, 0, Math.PI * 2); ctx.stroke();
-  ctx.restore();
-  // V/S gauge.
-  const vx = 196, vy = 700, vr = 30;
-  ctx.strokeStyle = DIM; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.arc(vx, vy, vr, 0, Math.PI * 2); ctx.stroke();
-  const vsA = -Math.PI / 2 + Math.max(-1, Math.min(1, (f.vsFpm || 0) / 2200)) * Math.PI * 0.8;
-  ctx.strokeStyle = INK; ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.moveTo(vx, vy);
-  ctx.lineTo(vx + Math.cos(vsA) * (vr - 4), vy + Math.sin(vsA) * (vr - 4)); ctx.stroke();
-  label(ctx, 'V/S', vx, vy - vr - 6, 11, DIM, 'center');
-  label(ctx, Math.round(f.vsFpm || 0) + ' FPM', vx, vy + vr + 16, 11, INK, 'center');
-  // Fuel / throttle / airframe bars.
+// Thin THR / FUEL / AIRFRAME bars, bottom-left.
+function drawBars(ctx, f) {
   const bars = [
-    ['FUEL', m.fuelKg, 100, GREEN], ['THROTTLE', f.throttle, 100, AMBER],
-    ['AIRFRAME', f.hull, 100, '#37b6e0']
+    ['THR', f.throttle, HUD_AMBER],
+    ['FUEL', f.fuelKg, '#37e08a'],
+    ['AIRFRAME', f.hull, '#37b6e0'],
   ];
-  bars.forEach(([name, v, max, col], i) => {
-    const y = 662 + i * 32;
-    label(ctx, name, 250, y, 12, DIM);
+  let y = 668;
+  for (const [name, v, col] of bars) {
+    hudLabel(ctx, name, 40, y, 16, HUD_DIM);
     ctx.fillStyle = 'rgba(255,255,255,0.14)';
-    ctx.fillRect(250, y + 6, 92, 8);
+    ctx.fillRect(150, y - 12, 150, 10);
     ctx.fillStyle = col;
-    ctx.fillRect(250, y + 6, 92 * Math.max(0, Math.min(1, v / max)), 8);
-    label(ctx, Math.round(v) + '%', 348, y + 14, 11, INK, 'right');
-  });
+    ctx.fillRect(150, y - 12, 150 * Math.max(0, Math.min(1, v / 100)), 10);
+    hudLabel(ctx, Math.round(v) + '%', 312, y, 16, HUD_INK);
+    y += 30;
+  }
 }
 
-function drawMinimap(ctx, m, stormT) {
-  panel(ctx, 1022, 600, 230, 170, 10);
-  label(ctx, 'KAPUAS SECTOR', 1040, 626, 13, DIM);
-  label(ctx, 'N', 1228, 626, 13, AMBER, 'right');
-  // River polyline down the minimap.
-  ctx.strokeStyle = '#6fb7d9'; ctx.lineWidth = 5;
+// Small glass minimap: the river, the villages, the plane.
+function drawMinimap(ctx, f) {
+  glassChip(ctx, 1004, 620, 260, 160, 12);
+  hudLabel(ctx, 'KAPUAS SECTOR', 1022, 646, 15, HUD_DIM);
+  hudLabel(ctx, 'N', 1246, 646, 15, HUD_AMBER, 'right');
+  ctx.strokeStyle = '#6fb7d9';
+  ctx.lineWidth = 5;
   ctx.beginPath();
   for (let i = 0; i <= 20; i++) {
-    const t = i / 20;
-    const x = 1137 + (riverCenter(t) / 380) * 92;
-    const y = 640 + t * 112;
+    const t = i / 20, z = t * 150;
+    const x = 1130 + (riverCenter(z) / 380) * 80;
+    const y = 660 + t * 105;
     if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
   }
   ctx.stroke();
-  // Villages as dots + labels (skip any label the storm band would cover).
-  ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
-  for (const v of VILLAGES) {
-    const x = 1137 + (riverCenter(v.t) / 380) * 92;
-    const y = 640 + v.t * 112;
+  ctx.font = 'bold 14px monospace';
+  const labelSides = [1, -1, 1, -1]; // alternate sides: Nanga Era + Sintang
+  VILLAGES.forEach((v, vi) => {     // sit 10px apart on the minimap
+    if (v.z > 150) return;
+    const x = 1130 + (riverCenter(v.z) / 380) * 80;
+    const y = 660 + (v.z / 150) * 105;
     ctx.fillStyle = '#ffd98a';
-    ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.fill();
-    if (v.t < 0.8 && Math.abs(v.t - stormT) > 0.08) { ctx.fillStyle = DIM; ctx.fillText(v.name, x + 7, y + 3); }
-  }
-  // Storm front band on the minimap, tied to the same timer.
-  if (stormT > 0.02) {
-    const sy = 640 + stormT * 112;
-    ctx.fillStyle = 'rgba(20,26,51,0.75)';
-    ctx.fillRect(1032, sy - 4, 210, 10);
-    ctx.fillStyle = 'rgba(10,20,30,0.85)';
-    ctx.fillRect(1036, sy - 22, 148, 14);
-    ctx.fillStyle = '#ff9a7a';
-    ctx.font = 'bold 10px monospace';
-    ctx.fillText('STORM FRONT · 2.6 NM', 1040, sy - 11);
-  }
-  // Plane marker.
-  const px = 1137 + (riverCenter(0.42) / 380) * 92;
-  ctx.fillStyle = '#fff';
-  ctx.beginPath(); ctx.arc(px, 640 + 0.42 * 112, 5, 0, Math.PI * 2); ctx.fill();
-}
-
-function drawWind(ctx) {
-  label(ctx, 'WIND  8 KT', 1240, 182, 13, INK, 'right');
-  ctx.strokeStyle = GREEN; ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.moveTo(1248, 178); ctx.lineTo(1268, 172); ctx.stroke();
-  ctx.fillStyle = GREEN;
-  ctx.beginPath(); ctx.moveTo(1268, 172); ctx.lineTo(1260, 168); ctx.lineTo(1260, 176); ctx.closePath(); ctx.fill();
-}
-
-function drawStormBanner(ctx, m) {
-  panel(ctx, 470, 120, 340, 44, 8);
-  ctx.fillStyle = '#ff9a7a';
-  ctx.font = 'bold 16px monospace'; ctx.textAlign = 'center';
-  ctx.fillText('MONSOON LANDFALL  ' + fmtClock(m.landfallSec), 640, 140);
-  label(ctx, 'STORM FRONT 2.6 NM · CLOSING', 640, 156, 11, '#ffb6a0', 'center');
-}
-
-function drawChecklist(ctx, m) {
-  panel(ctx, 28, 470, 300, 128, 10);
-  label(ctx, 'MISSION CHECKLIST', 46, 496, 13, AMBER);
-  m.checklist.forEach((c, i) => {
-    const y = 522 + i * 24;
-    ctx.fillStyle = c.done ? GREEN : 'rgba(255,255,255,0.25)';
-    ctx.beginPath(); ctx.arc(56, y - 4, 7, 0, Math.PI * 2); ctx.fill();
-    if (c.done) {
-      ctx.strokeStyle = '#0b2233'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(52, y - 4); ctx.lineTo(55, y - 1); ctx.lineTo(60, y - 8); ctx.stroke();
+    ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = HUD_DIM;
+    if (labelSides[vi % labelSides.length] < 0) {
+      ctx.textAlign = 'right';
+      ctx.fillText(v.name, x - 9, y + 5);
+    } else {
+      ctx.textAlign = 'left';
+      ctx.fillText(v.name, x + 9, y + 5);
     }
-    label(ctx, c.label + (c.prog ? '  ' + c.prog : ''), 72, y, 14, c.done ? DIM : INK);
   });
+  const pz = Math.min(150, f.distZ / 10);
+  const px = 1130 + (riverCenter(pz) / 380) * 80;
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(px, 660 + (pz / 150) * 105, 5, 0, Math.PI * 2); ctx.fill();
 }
 
-function drawToast(ctx, text) {
-  const w = ctx.measureText(text).width + 44;
-  panel(ctx, 640 - w / 2, 716, w, 38, 8);
-  label(ctx, text, 640, 741, 14, INK, 'center');
+// One slim radio line, bottom-centre.
+function drawRadioLine(ctx, m) {
+  ctx.font = 'bold 15px monospace';
+  ctx.textAlign = 'center';
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = 'rgba(8,20,32,0.8)';
+  const text = 'Capt. Vela: ' + m.sortie.radio;
+  ctx.strokeText(text, 640, 786);
+  ctx.fillStyle = HUD_INK;
+  ctx.fillText(text, 640, 786);
 }
 
-function drawFooter(ctx) {
-  label(ctx, 'P  /  ESC  PAUSE', 560, 782, 12, DIM, 'center');
-  label(ctx, 'H  FLIGHT MANUAL', 720, 782, 12, DIM, 'center');
-}
-
-function drawRadio(ctx, m) {
-  // Slim two-line radio (v5): 64px tall in its v4 zone (y 470), clear of
-  // the WIND label (y 182) and the MONSOON WALL label (y 216-240) — the
-  // first v5 placement at y 170 collided with both.
-  panel(ctx, 922, 470, 330, 64, 10);
-  label(ctx, 'RADIO · ' + m.radio.from, 940, 490, 12, AMBER);
-  ctx.fillStyle = INK; ctx.font = '12px monospace'; ctx.textAlign = 'left';
-  wrapText(ctx, '"' + m.radio.text + '"', 940, 508, 294, 16);
-}
-
-function wrapText(ctx, text, x, y, maxW, lh) {
-  const words = text.split(' ');
-  let line = '';
-  for (const w of words) {
-    const test = line ? line + ' ' + w : w;
-    if (ctx.measureText(test).width > maxW && line) {
-      ctx.fillText(line, x, y); line = w; y += lh;
-    } else line = test;
-  }
-  if (line) ctx.fillText(line, x, y);
-}
-
-// Full chase-view HUD, in draw order.
-function drawChaseHUD(ctx, f, m, stormT) {
-  drawTitleCard(ctx, f.altFt > 5 ? 'AIRBORNE' : 'GEAR DOWN');
-  drawCompass(ctx, f.hdg);
-  drawMissionCard(ctx, m);
-  drawSpeedAlt(ctx, f.speedKt, f.altFt);
-  drawInstruments(ctx, f, m);
-  drawMinimap(ctx, m, stormT);
-  drawWind(ctx);
-  drawStormBanner(ctx, m);
-  drawChecklist(ctx, m);
-  drawRadio(ctx, m);
-  drawToast(ctx, m.toast);
-  drawFooter(ctx);
+// The full glass HUD for chase view / live play / cover.
+function drawFlightHUD(ctx, f, m) {
+  drawTopStrip(ctx, f, m);
+  drawSpeedAlt(ctx, f);
+  drawMissionRows(ctx, m);
+  drawBars(ctx, f);
+  drawMinimap(ctx, f);
+  drawRadioLine(ctx, m);
 }

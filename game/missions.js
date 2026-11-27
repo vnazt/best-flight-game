@@ -1,77 +1,76 @@
-// missions.js — sorties, cargo, checklist, radio, scoring.
-// The river is the route: each sortie serves 2–3 villages in one run,
-// so one flight batches several deliveries instead of one.
+// missions.js — the Kapuas sorties, villages, rings and radio.
+// CONTENT is the Kapuas identity (kept on purpose: a named Indonesian river
+// route is our edge against the flood of generic fighter jets). The CODE is
+// written fresh here; no line comes from the old missions file.
 'use strict';
 
-// Three aircraft for the hangar screen.
-const AIRCRAFT = [
-  {
-    id: 'OTTER-9', name: 'OTTER-9', kind: 'River Floatplane',
-    maxKt: 132, stol: 54, desc: 'Single radial on floats. Slow, honest, lands anywhere.',
-    sel: true
-  },
-  {
-    id: 'HORNBILL-2', name: 'HORNBILL-2', kind: 'Twin-Engine Bush Plane',
-    maxKt: 168, stol: 71, desc: 'Two turboprops. Carries the clinic fridge.',
-    sel: false
-  },
-  {
-    id: 'MERAK-7', name: 'MERAK-7', kind: 'Seaplane Clinic',
-    maxKt: 121, stol: 48, desc: 'Flying clinic. Vaccines and a stretcher.',
-    sel: false
-  }
+// The ring chain, in world units along the river. Drawn far -> near.
+const RINGS = [
+  { n: 2, z: 195, r: 3.5, cy: 6.5, label: 'G-02 · 1.2 KM', big: false, passed: false },
+  { n: 6, z: 150, r: 4.0, cy: 6.5, label: 'G-06 · 910 M', big: false, passed: false },
+  { n: 5, z: 90, r: 5.5, cy: 6.5, label: 'G-05 · 640 M', big: false, passed: false },
+  { n: 3, z: 45, r: 7.0, cy: 6.5, label: 'GATE 03 · 380 M', big: true, passed: false },
 ];
 
-// Three named sorties. Sortie 1 is the cover sortie.
+// Villages along the river, each waiting on a cargo drop.
+const VILLAGES = [
+  { name: 'PUTUSSIBAU', z: 0, cargo: 'FUEL', side: -1, done: false },
+  { name: 'NANGA ERA', z: 26, cargo: 'MEDICINE', side: -1, done: false },
+  { name: 'SINTANG', z: 40, cargo: 'MAIL', side: 1, done: false },
+  { name: 'PONTIANAK', z: 150, cargo: 'SPICES', side: 1, done: false },
+];
+
 const SORTIES = [
   {
-    n: 1, name: 'Putussibau Run', brief: 'Fly the river · 3 villages, 6 gates',
-    legs: ['PUTUSSIBAU', 'NANGA ERA', 'TAYAN'], cargo: ['MAIL', 'MEDICINE', 'SPARE PARTS'],
-    gates: 6, sel: true
-  },
-  {
-    n: 2, name: 'Tayan Medicine Run', brief: 'Cold-boxes to Tayan · one stop',
-    legs: ['TAYAN', 'SINTANG'], cargo: ['MEDICINE', 'MAIL'],
-    gates: 4, sel: false
-  },
-  {
-    n: 3, name: 'Pontianak Storm Approach', brief: 'Night storm · runway 27 approach',
-    legs: ['SINTANG', 'PONTIANAK'], cargo: ['SPARE PARTS', 'MAIL'],
-    gates: 5, sel: false
-  }
-];
-
-// Sky lighting modes (hangar pills).
-const SKY_MODES = ['CRISP DAY', 'GOLDEN SUNSET', 'STORM DUSK'];
-const SKY_KEYS = { 'CRISP DAY': 'day', 'GOLDEN SUNSET': 'sunset', 'STORM DUSK': 'dusk' };
-
-// Named humans on the radio — the tower is a person, not a beep.
-const RADIO = [
-  { from: 'KAPUAS TOWER · Capt. Vela', text: 'Otter-Nine, storm front 2.6 NM and closing. Make your drops count.' },
-  { from: 'NANGA ERA · Nurse Sari', text: 'Medicine cold-box is ready on the dock. Come in low over the longhouse.' },
-  { from: 'TAYAN · Pak Dedi', text: 'Spare parts for the generator — my village is dark tonight without them.' },
-  { from: 'SINTANG · Lena', text: 'Mail sack on the float dock. Mind the crosswind at the bend.' }
-];
-
-// Mission state for one sortie. Scoring: ring +175, cargo drop +400,
-// water landing +500, perfect ring (centred) +250, combo multiplier on streaks.
-function newMission(sortie) {
-  return {
-    sortie,
-    gatesPassed: 0, gatesTotal: sortie.gates,
-    dropsDone: 0, dropsTotal: sortie.legs.length,
-    score: 0, combo: 1, comboBest: 1,
-    fuelKg: 100, hull: 100, throttle: 66,
-    speedKt: 0, altFt: 0, hdg: 46, vsFpm: 0,
-    landfallSec: 287, // 4:47 on the clock
+    n: 1, name: 'Putussibau Run',
+    brief: 'Fly the river · 3 villages, 6 gates',
+    legs: ['Putussibau', 'Nanga Era', 'Sintang', 'Pontianak'],
     checklist: [
-      { label: 'Take off', done: true },
+      { label: 'Take off', done: true, prog: '' },
       { label: 'Thread the rings', done: false, prog: '2/6' },
-      { label: 'Drop Nanga Era', done: false },
-      { label: 'Land Pontianak', done: false }
+      { label: 'Drop Nanga Era', done: false, prog: '' },
+      { label: 'Land Pontianak', done: false, prog: '' },
     ],
-    radio: RADIO[0],
-    toast: 'POSITIVE CLIMB — Follow the amber marker on the compass.'
+    gatesTotal: 6, landfallSec: 287, score: 18450,
+    radio: '"Make your drops count."',
+  },
+  {
+    n: 2, name: 'Sintang Mail Run',
+    brief: 'Mail to Sintang · 4 villages, 5 gates',
+    legs: ['Putussibau', 'Nanga Era', 'Sintang'],
+    checklist: [
+      { label: 'Take off', done: true, prog: '' },
+      { label: 'Thread the rings', done: false, prog: '0/5' },
+      { label: 'Drop Sintang mail', done: false, prog: '' },
+      { label: 'Land Sintang', done: false, prog: '' },
+    ],
+    gatesTotal: 5, landfallSec: 240, score: 0,
+    radio: '"The mail flies or the river waits."',
+  },
+  {
+    n: 3, name: 'Pontianak Dawn',
+    brief: 'Dawn patrol to Pontianak · 2 villages, 4 gates',
+    legs: ['Sintang', 'Pontianak'],
+    checklist: [
+      { label: 'Take off', done: true, prog: '' },
+      { label: 'Thread the rings', done: false, prog: '0/4' },
+      { label: 'Drop Pontianak spices', done: false, prog: '' },
+      { label: 'Land Pontianak', done: false, prog: '' },
+    ],
+    gatesTotal: 4, landfallSec: 320, score: 0,
+    radio: '"Dawn over the Kapuas — fly it like you mean it."',
+  },
+];
+
+function newMission(sortieIdx) {
+  const s = SORTIES[sortieIdx || 0];
+  return {
+    sortie: s,
+    gatesPassed: 2, gatesTotal: s.gatesTotal,
+    score: s.score, landfallSec: s.landfallSec,
+    checklist: s.checklist.map((c) => ({ label: c.label, done: c.done, prog: c.prog })),
+    dropsDone: 0, dropsTotal: 3, combo: 0,
+    toast: 'OTTER-9 CLEARED FOR TAKEOFF — river is yours, captain.',
   };
 }
 
@@ -79,4 +78,6 @@ function fmtClock(sec) {
   const m = Math.floor(sec / 60), s = Math.floor(sec % 60);
   return m + ':' + String(s).padStart(2, '0');
 }
-function fmtScore(n) { return String(Math.round(n)).padStart(5, '0'); }
+function fmtScore(n) {
+  return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
